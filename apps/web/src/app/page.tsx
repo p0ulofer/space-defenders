@@ -1,0 +1,53 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import SpaceBackground from "@/components/SpaceBackground";
+
+export default function Home() {
+  return (
+    <div className="relative min-h-screen w-screen overflow-hidden flex flex-col items-center justify-center bg-black">
+      {/* Background Starfield Canvas Component */}
+      <SpaceBackground />
+
+      {/* Main Content Area */}
+      <main className="relative z-10 flex flex-col items-center justify-center px-4 max-w-2xl w-full text-center">
+        {/* Game Logo */}
+        <div className="mb-12 select-none hover:scale-105 transition-transform duration-300">
+          <Image
+            src="/logo.png"
+            alt="Space Defenders Logo"
+            width={640}
+            height={320}
+            priority
+            className="drop-shadow-[0_0_25px_rgba(101,197,222,0.6)]"
+          />
+        </div>
+
+        {/* Buttons Menu */}
+        <div className="flex flex-col gap-6 w-72">
+          {/* PLAY BUTTON */}
+          <Link href="/play" className="w-full">
+            <span
+              className="block w-full text-white bg-[#65c5de] border-b-6 border-r-6 border-[#2d8fb4] hover:bg-[#4bb7d3] active:border-b-2 active:border-r-2 active:translate-y-[4px] active:translate-x-[2px] py-4 px-6 text-lg tracking-widest transition-all duration-100 font-pixel uppercase cursor-pointer rounded-sm shadow-md"
+            >
+              PLAY
+            </span>
+          </Link>
+
+          {/* ABOUT BUTTON */}
+          <Link href="/about" className="w-full">
+            <span
+              className="block w-full text-white bg-[#65c5de] border-b-6 border-r-6 border-[#2d8fb4] hover:bg-[#4bb7d3] active:border-b-2 active:border-r-2 active:translate-y-[4px] active:translate-x-[2px] py-4 px-6 text-lg tracking-widest transition-all duration-100 font-pixel uppercase cursor-pointer rounded-sm shadow-md"
+            >
+              ABOUT
+            </span>
+          </Link>
+        </div>
+      </main>
+
+      {/* Bottom overlay for retro grid feel */}
+      <div className="absolute bottom-0 w-full h-32 bg-gradient-to-t from-black to-transparent pointer-events-none z-0" />
+    </div>
+  );
+}
