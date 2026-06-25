@@ -11,6 +11,7 @@ async function bootstrap() {
     forbidNonWhitelisted: true, // Bloqueia a requisição se enviarem campos que não deviam
     transform: true, // Transforma os tipos dos dados automaticamente
   }));
+  app.enableCors();
   await app.listen(3001);
   console.log('Serviço de Autenticação rodando em: http://localhost:3001');
 }

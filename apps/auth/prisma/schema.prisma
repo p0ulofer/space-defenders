@@ -14,6 +14,16 @@ model User {
   createdAt DateTime @default(now())
   password  String?
   role      Role     @default(USER)
+  scores    Score[]
+}
+
+model Score {
+  id        String   @id @default(uuid())
+  score     Int
+  wave      Int
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }
 
 enum Role {

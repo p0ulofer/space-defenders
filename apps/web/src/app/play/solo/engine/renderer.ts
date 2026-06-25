@@ -60,17 +60,21 @@ export function drawGame(
 
   // --- Render Bullets ---
   state.bullets.forEach((bullet) => {
-    ctx.fillStyle = bullet.isPlayerBullet
+    const color = bullet.isPlayerBullet
       ? GAME_CONFIG.PARTICLES_COLOR_ENEMY
       : GAME_CONFIG.PARTICLES_COLOR_PLAYER;
-    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
 
-    ctx.shadowColor = bullet.isPlayerBullet
-      ? GAME_CONFIG.PARTICLES_COLOR_ENEMY
-      : GAME_CONFIG.PARTICLES_COLOR_PLAYER;
+    ctx.save();
+    ctx.translate(bullet.x, bullet.y);
+    ctx.rotate(Math.atan2(bullet.vy, bullet.vx) + Math.PI / 2);
+
+    ctx.fillStyle = color;
+    ctx.fillRect(-bullet.width / 2, -bullet.height / 2, bullet.width, bullet.height);
+
+    ctx.shadowColor = color;
     ctx.shadowBlur = 8;
-    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
-    ctx.shadowBlur = 0;
+    ctx.fillRect(-bullet.width / 2, -bullet.height / 2, bullet.width, bullet.height);
+    ctx.restore();
   });
 
   // --- Render Particles ---

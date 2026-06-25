@@ -1,0 +1,43 @@
+// Configurações do Game Server — Lógica autoritativa de jogo multiplayer
+
+export const GAME_CONFIG = {
+  // Resolução virtual
+  GAME_WIDTH: 800,
+  GAME_HEIGHT: 600,
+
+  // Tick rate
+  TICK_RATE: 60, // 60 FPS servidor
+  TICK_INTERVAL_MS: 1000 / 60, // ~16.6ms
+
+  // Configurações do Player
+  PLAYER_SPEED: 5.2,
+  PLAYER_LIVES: 3,
+  PLAYER_SIZE: 64,
+  PLAYER_SHOOT_COOLDOWN: 22, // em ticks (300ms a 60 ticks/s)
+  PLAYER_BULLET_SPEED: 14.5,
+
+  // Configurações dos Inimigos
+  ENEMY_SIZE: 56,
+  ENEMY_SPACING_X: 75,
+  ENEMY_SPACING_Y: 65,
+  ENEMY_SPAWN_LEFT_MARGIN: 40,
+  ENEMY_SPAWN_RIGHT_MARGIN: 40,
+  ENEMY_SPAWN_TOP_MARGIN: 80,
+  ENEMY_BASE_MOVE_INTERVAL: 45,
+  ENEMY_MIN_MOVE_INTERVAL: 12,
+  ENEMY_SPEED_WAVE_GROWTH: 0.15,
+
+  ENEMY_SHOOT_COOLDOWN_BASE: 90,
+  ENEMY_SHOOT_COOLDOWN_MIN: 30,
+  ENEMY_SHOOT_COOLDOWN_WAVE_DECREASE: 8,
+  ENEMY_BULLET_SPEED_BASE: 4.5,
+  ENEMY_BULLET_SPEED_WAVE_GROWTH: 0.15,
+
+  // Waves
+  WAVE_INITIAL_ENEMIES: 6,
+  WAVE_ENEMIES_GROWTH_PER_LEVEL: 2,
+  WAVE_MAX_ENEMIES: 16,
+
+  // Máximo de jogadores por sala
+  MAX_PLAYERS: 2,
+};

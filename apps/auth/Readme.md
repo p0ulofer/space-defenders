@@ -151,6 +151,23 @@ Resposta:
 | `PATCH` | `/users/:id` | JWT + próprio ou ADMIN | Atualiza usuário |
 | `DELETE` | `/users/:id` | JWT + ADMIN | Remove usuário |
 
+### Pontuações e Leaderboard
+
+| Método | Rota | Acesso | Descrição |
+|--------|------|--------|-----------|
+| `POST` | `/scores` | JWT | Grava/salva o recorde do usuário autenticado |
+| `GET` | `/scores/leaderboard` | Público | Retorna o Top 10 das pontuações gerais |
+| `GET` | `/scores/me` | JWT | Retorna o histórico de scores do próprio usuário |
+
+#### Exemplo de envio de pontuação (POST /scores)
+
+```bash
+curl -X POST http://localhost:3001/scores \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"score": 5600, "wave": 4}'
+```
+
 #### Usando o token nas requisições
 
 ```bash

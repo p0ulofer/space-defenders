@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import SpaceBackground from "@/components/SpaceBackground";
+import { authService } from "@/utils/authService";
 import { GAME_CONFIG } from "./config";
 import { GameState, createInitialGameState, resetGameState } from "./engine/gameState";
 import { spawnEnemies } from "./engine/spawner";
@@ -21,6 +22,40 @@ export default function PlaySolo() {
 
   // Use ref for game loop to avoid state re-render latency
   const gameStateRef = useRef<GameState>(createInitialGameState());
+
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(
+        window.innerWidth < 1024 ||
+        ("ontouchstart" in window) ||
+        navigator.maxTouchPoints > 0
+      );
+    };
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
+  const handleMoveLeftStart = () => {
+    gameStateRef.current.keys["ArrowLeft"] = true;
+  };
+  const handleMoveLeftEnd = () => {
+    gameStateRef.current.keys["ArrowLeft"] = false;
+  };
+  const handleMoveRightStart = () => {
+    gameStateRef.current.keys["ArrowRight"] = true;
+  };
+  const handleMoveRightEnd = () => {
+    gameStateRef.current.keys["ArrowRight"] = false;
+  };
+  const handleShootStart = () => {
+    gameStateRef.current.keys["Space"] = true;
+  };
+  const handleShootEnd = () => {
+    gameStateRef.current.keys["Space"] = false;
+  };
 
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const playerImgRef = useRef<HTMLImageElement | null>(null);
@@ -90,6 +125,28 @@ export default function PlaySolo() {
     state.enemySpeedMultiplier = result.speedMultiplier;
   };
 
+  const [isSavingScore, setIsSavingScore] = useState(false);
+  const [scoreSaveStatus, setScoreSaveStatus] = useState("");
+
+  useEffect(() => {
+    if (isGameOver && score > 0) {
+      const saveScore = async () => {
+        setIsSavingScore(true);
+        setScoreSaveStatus("ENVIANDO RECORDE...");
+        try {
+          await authService.submitScore(score, wave);
+          setScoreSaveStatus("RECORDE REGISTRADO!");
+        } catch (err: any) {
+          console.error(err);
+          setScoreSaveStatus("ERRO AO SALVAR RECORDE.");
+        } finally {
+          setIsSavingScore(false);
+        }
+      };
+      saveScore();
+    }
+  }, [isGameOver, score, wave]);
+
   // Reset Game state
   const resetGame = () => {
     const state = gameStateRef.current;
@@ -100,6 +157,8 @@ export default function PlaySolo() {
     setLives(GAME_CONFIG.PLAYER_LIVES);
     setIsGameOver(false);
     setIsPaused(false);
+    setScoreSaveStatus("");
+    setIsSavingScore(false);
 
     applySpawnEnemies(1);
   };
@@ -262,6 +321,26 @@ export default function PlaySolo() {
               </span>
             ))}
           </span>
+          {isMobile && !isGameOver && (
+            <button
+              onClick={() => {
+                const state = gameStateRef.current;
+                state.isPaused = !state.isPaused;
+                setIsPaused(state.isPaused);
+              }}
+              className="ml-2 bg-[#65c5de] hover:bg-[#4bb7d3] border-b-2 border-r-2 border-[#2d8fb4] text-white p-1.5 rounded-sm active:translate-y-[1px] active:translate-x-[1px] active:border-b active:border-r transition-all select-none touch-none flex items-center justify-center"
+            >
+              {isPaused ? (
+                <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                  <path d="M8 5v14l11-7z"/>
+                </svg>
+              ) : (
+                <svg className="w-3 h-3 fill-current" viewBox="0 0 24 24">
+                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+                </svg>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -325,6 +404,12 @@ export default function PlaySolo() {
                 <div className="text-white text-base mt-1 text-[#65c5de]">{score}</div>
               </div>
 
+              {scoreSaveStatus && (
+                <div className="text-[#65c5de] font-pixel text-[8px] mb-4 uppercase animate-pulse">
+                  {scoreSaveStatus}
+                </div>
+              )}
+
               <div className="flex flex-col gap-4">
                 {/* REPLAY BUTTON */}
                 <button
@@ -350,6 +435,49 @@ export default function PlaySolo() {
       <div className="relative z-10 mt-3 font-pixel text-[8px] sm:text-[10px] text-zinc-500 uppercase select-none">
         Mover: A/D ou Setas | Atirar: Espaço | Pausar: P
       </div>
+
+      {/* Mobile touch controls */}
+      {isMobile && (
+        <div className="relative z-20 w-full max-w-[800px] flex justify-between items-center px-6 mt-4 select-none">
+          {/* Direcionais */}
+          <div className="flex gap-4">
+            <button
+              onTouchStart={handleMoveLeftStart}
+              onTouchEnd={handleMoveLeftEnd}
+              onMouseDown={handleMoveLeftStart}
+              onMouseUp={handleMoveLeftEnd}
+              onMouseLeave={handleMoveLeftEnd}
+              className="bg-[#65c5de] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#2d8fb4] text-white font-pixel text-lg py-3 px-6 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer touch-none"
+            >
+              ◀
+            </button>
+            <button
+              onTouchStart={handleMoveRightStart}
+              onTouchEnd={handleMoveRightEnd}
+              onMouseDown={handleMoveRightStart}
+              onMouseUp={handleMoveRightEnd}
+              onMouseLeave={handleMoveRightEnd}
+              className="bg-[#65c5de] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#2d8fb4] text-white font-pixel text-lg py-3 px-6 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer touch-none"
+            >
+              ▶
+            </button>
+          </div>
+
+          {/* Botão de Tiro */}
+          <div>
+            <button
+              onTouchStart={handleShootStart}
+              onTouchEnd={handleShootEnd}
+              onMouseDown={handleShootStart}
+              onMouseUp={handleShootEnd}
+              onMouseLeave={handleShootEnd}
+              className="bg-[#65c5de] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#2d8fb4] text-white font-pixel text-xs tracking-wider py-4 px-8 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer uppercase touch-none"
+            >
+              ATIRAR
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
