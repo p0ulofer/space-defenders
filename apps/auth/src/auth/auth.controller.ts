@@ -48,7 +48,7 @@ export class AuthController {
   async googleAuthRedirect(@Req() req: { user: any }, @Res() res: any) {
     const result = await this.authService.validateOAuthUser(req.user);
     const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:3000';
-    res.redirect(`${frontendUrl}/auth/callback?token=${result.access_token}`);
+    res.redirect(`${frontendUrl}/auth/google/callback?token=${result.access_token}`);
   }
 
   @Public()
