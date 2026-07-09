@@ -10,7 +10,7 @@ export const GAME_CONFIG = {
   TICK_INTERVAL_MS: 1000 / 60, // ~16.6ms
 
   // Configurações do Player
-  PLAYER_SPEED: 5.2,
+  PLAYER_SPEED: 1.5,
   PLAYER_LIVES: 3,
   PLAYER_SIZE: 64,
   PLAYER_SHOOT_COOLDOWN: 22, // em ticks (300ms a 60 ticks/s)
