@@ -1,5 +1,5 @@
 "use client";
-
+                        
 import { useEffect, useRef, useState, useCallback } from "react";
 import { io, Socket } from "socket.io-client";
 import {
@@ -42,7 +42,7 @@ export function useWebRTCEngine({
   playerId,
   playerName,
   mode,
-  gameServerUrl = "http://localhost:4000",
+  gameServerUrl = process.env.NEXT_PUBLIC_GAME_SERVER_URL
 }: UseGameEngineOptions): UseGameEngineResult {
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
   const [connected, setConnected] = useState(false);
