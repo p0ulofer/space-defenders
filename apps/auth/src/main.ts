@@ -20,7 +20,7 @@ async function bootstrap() {
       /\.vercel\.app$/,                                  // libera todas as preview URLs de PR
     ],
     credentials: true, // se você usa cookies/sessão; se for só Bearer token no header, pode tirar
-  }););
+  });
 
   // Configuração do Swagger
   const config = new DocumentBuilder()
