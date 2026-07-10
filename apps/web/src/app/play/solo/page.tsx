@@ -17,14 +17,14 @@ function createExplosion(x: number, y: number, color: string) {
   }> = [];
   for (let i = 0; i < 12; i++) {
     const angle = Math.random() * Math.PI * 2;
-    const speed = 1 + Math.random() * 4;
+    const speed = 0.5 + Math.random() * 2;
     particles.push({
       x, y,
       vx: Math.cos(angle) * speed,
       vy: Math.sin(angle) * speed,
       color,
       alpha: 1.0,
-      size: 2 + Math.random() * 3,
+      size: 1 + Math.random() * 1.5,
     });
   }
   return particles;
@@ -42,11 +42,11 @@ export default function PlaySolo() {
   const keysRef = useRef<Record<string, boolean>>({});
 
   const [imagesLoaded, setImagesLoaded] = useState(false);
-  const [showMenu, setShowMenu] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
   const playerImgRef = useRef<HTMLImageElement | null>(null);
   const enemyImgRef = useRef<HTMLImageElement | null>(null);
+  const heartImgRef = useRef<HTMLImageElement | null>(null);
 
   // Auth
   const [playerId, setPlayerId] = useState("");
@@ -70,6 +70,8 @@ export default function PlaySolo() {
     mode: "solo",
   });
 
+  const showMenu = snapshot?.status === "paused";
+
   // Mobile detection
   useEffect(() => {
     const checkMobile = () => {
@@ -90,18 +92,22 @@ export default function PlaySolo() {
     playerImg.src = "/player_spritesheet.png";
     const enemyImg = new Image();
     enemyImg.src = "/enemy_spritesheet.png";
+    const heartImg = new Image();
+    heartImg.src = "/heal-heart-pixilart.png";
 
     let loaded = 0;
     const onLoad = () => {
       loaded++;
-      if (loaded === 2) {
+      if (loaded === 3) {
         playerImgRef.current = playerImg;
         enemyImgRef.current = enemyImg;
+        heartImgRef.current = heartImg;
         setImagesLoaded(true);
       }
     };
     playerImg.onload = onLoad;
     enemyImg.onload = onLoad;
+    heartImg.onload = onLoad;
   }, []);
 
   // Keyboard input
@@ -109,7 +115,7 @@ export default function PlaySolo() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "p" || e.key === "P") {
         e.preventDefault();
-        setShowMenu((prev) => !prev);
+        sendInput("pause");
       }
       if (e.key === "q" || e.key === "Q") {
         e.preventDefault();
@@ -131,13 +137,14 @@ export default function PlaySolo() {
     };
   }, [sendInput]);
 
-  // Input send loop (60Hz via requestAnimationFrame)
+  // Input send loop — fixed 20Hz (50ms) to match server tick rate
   useEffect(() => {
-    const sendInputs = () => {
-      if (!connected || status !== "connected") {
-        requestAnimationFrame(sendInputs);
-        return;
-      }
+    const intervalId = setInterval(() => {
+      if (!connected || status !== "connected") return;
+
+      // Don't send inputs if game is over
+      const snap = snapshotRef.current;
+      if (snap && snap.status === "gameover") return;
 
       const keys = keysRef.current;
       let dx = 0;
@@ -155,17 +162,17 @@ export default function PlaySolo() {
         dy = 1;
       }
 
-      sendInput("move", dx, dx, dy);
+      // Only send move when there's actual movement
+      if (dx !== 0 || dy !== 0) {
+        sendInput("move", dx, dx, dy);
+      }
 
       if (keys[" "]) {
         sendInput("shoot");
       }
+    }, 50);
 
-      requestAnimationFrame(sendInputs);
-    };
-
-    const id = requestAnimationFrame(sendInputs);
-    return () => cancelAnimationFrame(id);
+    return () => clearInterval(intervalId);
   }, [connected, status, sendInput]);
 
   // Store latest snapshot in ref for render loop
@@ -235,6 +242,9 @@ export default function PlaySolo() {
         return;
       }
 
+      ctx.save();
+      ctx.scale(2, 2);
+
       const playerImg = playerImgRef.current;
       const enemyImg = enemyImgRef.current;
 
@@ -295,9 +305,28 @@ export default function PlaySolo() {
         // Se a bala se move em X, desenha na horizontal, senão vertical
         const isHorizontal = Math.abs(bullet.vx) > 0;
         if (isHorizontal) {
-          ctx.fillRect(-8, -2, 16, 4);
+          ctx.fillRect(-bullet.width / 2, -bullet.height / 2, bullet.width, bullet.height);
         } else {
-          ctx.fillRect(-2, -8, 4, 16);
+          ctx.fillRect(-bullet.width / 2, -bullet.height / 2, bullet.width, bullet.height);
+        }
+        ctx.restore();
+      }
+
+      // Draw hearts
+      const heartImg = heartImgRef.current;
+      for (const heart of snap.hearts) {
+        ctx.save();
+        // Bobbing animation
+        const bob = Math.sin(Date.now() / 300) * 2;
+        ctx.translate(heart.x + heart.width / 2, heart.y + heart.height / 2 + bob);
+        // Glow
+        ctx.shadowColor = "#ff4d6a";
+        ctx.shadowBlur = 12;
+        if (heartImg) {
+          ctx.drawImage(heartImg, -heart.width / 2, -heart.height / 2, heart.width, heart.height);
+        } else {
+          ctx.fillStyle = "#ff4d6a";
+          ctx.fillRect(-heart.width / 2, -heart.height / 2, heart.width, heart.height);
         }
         ctx.restore();
       }
@@ -321,6 +350,8 @@ export default function PlaySolo() {
         ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
         ctx.restore();
       }
+
+      ctx.restore();
 
       // Game Over overlay
       if (snap.status === "gameover") {
@@ -368,6 +399,10 @@ export default function PlaySolo() {
   const handleMoveLeftEnd = () => { keysRef.current["ArrowLeft"] = false; };
   const handleMoveRightStart = () => { keysRef.current["ArrowRight"] = true; };
   const handleMoveRightEnd = () => { keysRef.current["ArrowRight"] = false; };
+  const handleMoveUpStart = () => { keysRef.current["ArrowUp"] = true; };
+  const handleMoveUpEnd = () => { keysRef.current["ArrowUp"] = false; };
+  const handleMoveDownStart = () => { keysRef.current["ArrowDown"] = true; };
+  const handleMoveDownEnd = () => { keysRef.current["ArrowDown"] = false; };
   const handleShootStart = () => { keysRef.current[" "] = true; };
   const handleShootEnd = () => { keysRef.current[" "] = false; };
 
@@ -398,7 +433,7 @@ export default function PlaySolo() {
           </span>
           {isMobile && !isGameOver && (
             <button
-              onClick={() => setShowMenu((prev) => !prev)}
+              onClick={() => sendInput("pause")}
               className="ml-2 bg-[#65c5de] hover:bg-[#4bb7d3] border-b-2 border-r-2 border-[#2d8fb4] text-white p-1.5 rounded-sm active:translate-y-[1px] active:translate-x-[1px] active:border-b active:border-r transition-all select-none touch-none flex items-center justify-center"
             >
               {showMenu ? (
@@ -457,7 +492,7 @@ export default function PlaySolo() {
               </p>
               <div className="flex flex-col gap-4">
                 <button
-                  onClick={() => setShowMenu(false)}
+                  onClick={() => sendInput("pause")}
                   className="w-full text-white bg-[#65c5de] border-b-4 border-r-4 border-[#2d8fb4] hover:bg-[#4bb7d3] active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] py-3 px-4 text-xs tracking-wider transition-all duration-100 font-pixel uppercase cursor-pointer rounded-sm shadow-md"
                 >
                   RETOMAR
@@ -522,41 +557,67 @@ export default function PlaySolo() {
 
       {/* Controls help */}
       <div className="relative z-10 mt-3 font-pixel text-[8px] sm:text-[10px] text-zinc-500 uppercase select-none text-center">
-        Mover: WASD ou Setas | Atirar: Espaço | Mirar/Girar: Q | Pausar: P
+        Mover: WASD ou Setas | Atirar: Espaço | Pausar: P
       </div>
 
       {/* Mobile touch controls */}
       {isMobile && (
         <div className="relative z-20 w-full max-w-[800px] flex justify-between items-center px-6 mt-4 select-none">
-          <div className="flex gap-4">
+          {/* D-Pad: up/down/left/right */}
+          <div className="grid grid-cols-3 grid-rows-3 gap-1 w-28">
+            {/* row 1: up */}
+            <div />
+            <button
+              onTouchStart={handleMoveUpStart}
+              onTouchEnd={handleMoveUpEnd}
+              onMouseDown={handleMoveUpStart}
+              onMouseUp={handleMoveUpEnd}
+              onMouseLeave={handleMoveUpEnd}
+              className="bg-[#65c5de] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#2d8fb4] text-white py-2 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer touch-none flex items-center justify-center"
+            >
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 4l-8 8h5v8h6v-8h5z"/></svg>
+            </button>
+            <div />
+
+            {/* row 2: left / center / right */}
             <button
               onTouchStart={handleMoveLeftStart}
               onTouchEnd={handleMoveLeftEnd}
               onMouseDown={handleMoveLeftStart}
               onMouseUp={handleMoveLeftEnd}
               onMouseLeave={handleMoveLeftEnd}
-              className="bg-[#65c5de] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#2d8fb4] text-white font-pixel text-lg py-3 px-6 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer touch-none"
+              className="bg-[#65c5de] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#2d8fb4] text-white py-2 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer touch-none flex items-center justify-center"
             >
-              ◀
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M4 12l8-8v5h8v6h-8v5z"/></svg>
             </button>
+            <div />
             <button
               onTouchStart={handleMoveRightStart}
               onTouchEnd={handleMoveRightEnd}
               onMouseDown={handleMoveRightStart}
               onMouseUp={handleMoveRightEnd}
               onMouseLeave={handleMoveRightEnd}
-              className="bg-[#65c5de] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#2d8fb4] text-white font-pixel text-lg py-3 px-6 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer touch-none"
+              className="bg-[#65c5de] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#2d8fb4] text-white py-2 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer touch-none flex items-center justify-center"
             >
-              ▶
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M20 12l-8-8v5H4v6h8v5z"/></svg>
             </button>
-          </div>
-          <div className="flex gap-2">
+
+            {/* row 3: down */}
+            <div />
             <button
-              onClick={() => sendInput("rotate")}
-              className="bg-[#2d8fb4] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#005f73] text-white font-pixel text-xs py-3 px-4 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer uppercase touch-none"
+              onTouchStart={handleMoveDownStart}
+              onTouchEnd={handleMoveDownEnd}
+              onMouseDown={handleMoveDownStart}
+              onMouseUp={handleMoveDownEnd}
+              onMouseLeave={handleMoveDownEnd}
+              className="bg-[#65c5de] hover:bg-[#4bb7d3] border-b-4 border-r-4 border-[#2d8fb4] text-white py-2 active:border-b-2 active:border-r-2 active:translate-y-[2px] active:translate-x-[1px] transition-all duration-100 rounded-sm shadow-md cursor-pointer touch-none flex items-center justify-center"
             >
-              GIRAR (Q)
+              <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 20l8-8h-5V4H9v8H4z"/></svg>
             </button>
+            <div />
+          </div>
+
+          <div className="flex gap-2">
             <button
               onTouchStart={handleShootStart}
               onTouchEnd={handleShootEnd}

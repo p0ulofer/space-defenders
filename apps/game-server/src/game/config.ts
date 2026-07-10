@@ -2,52 +2,52 @@
 
 export const GAME_CONFIG = {
   // Resolução virtual
-  GAME_WIDTH: 800,
-  GAME_HEIGHT: 600,
+  GAME_WIDTH: 400,
+  GAME_HEIGHT: 300,
 
   // Tick rate
-  TICK_RATE: 60, // 60 FPS servidor
-  TICK_INTERVAL_MS: 1000 / 60, // ~16.6ms
+  TICK_RATE: 20, // 20 FPS servidor
+  TICK_INTERVAL_MS: 1000 / 20, // 50ms
 
   // Configurações do Player
-  PLAYER_SPEED: 3.0,
+  PLAYER_SPEED: 7,
   PLAYER_LIVES: 3,
-  PLAYER_SIZE: 64,
-  PLAYER_SHOOT_COOLDOWN: 22, // em ticks (300ms a 60 ticks/s)
-  PLAYER_BULLET_SPEED: 14.5,
+  PLAYER_SIZE: 32,
+  PLAYER_SHOOT_COOLDOWN: 7, // em ticks (~350ms a 20 ticks/s)
+  PLAYER_BULLET_SPEED: 21.75,
 
   // Configurações dos Inimigos
-  ENEMY_SIZE: 56,
-  ENEMY_SPACING_X: 75,
-  ENEMY_SPACING_Y: 65,
-  ENEMY_SPAWN_LEFT_MARGIN: 40,
-  ENEMY_SPAWN_RIGHT_MARGIN: 40,
-  ENEMY_SPAWN_TOP_MARGIN: 80,
-  ENEMY_BASE_MOVE_INTERVAL: 45,
+  ENEMY_SIZE: 28,
+  ENEMY_SPACING_X: 37.5,
+  ENEMY_SPACING_Y: 32.5,
+  ENEMY_SPAWN_LEFT_MARGIN: 20,
+  ENEMY_SPAWN_RIGHT_MARGIN: 20,
+  ENEMY_SPAWN_TOP_MARGIN: 40,
+  ENEMY_BASE_MOVE_INTERVAL: 15, // 750ms a 20 FPS
 
-  ENEMY_MIN_MOVE_INTERVAL: 12,
+  ENEMY_MIN_MOVE_INTERVAL: 4, // 200ms a 20 FPS
   ENEMY_SPEED_WAVE_GROWTH: 0.15,
 
-  ENEMY_SHOOT_COOLDOWN_BASE: 90,
-  ENEMY_SHOOT_COOLDOWN_MIN: 30,
-  ENEMY_SHOOT_COOLDOWN_WAVE_DECREASE: 8,
-  ENEMY_BULLET_SPEED_BASE: 4.5,
-  ENEMY_BULLET_SPEED_WAVE_GROWTH: 0.15,
+  ENEMY_SHOOT_COOLDOWN_BASE: 30, // 1.5s a 20 FPS
+  ENEMY_SHOOT_COOLDOWN_MIN: 10,  // 500ms a 20 FPS
+  ENEMY_SHOOT_COOLDOWN_WAVE_DECREASE: 3,
+  ENEMY_BULLET_SPEED_BASE: 6.75,
+  ENEMY_BULLET_SPEED_WAVE_GROWTH: 0.225,
 
   // Flanking Vertical
-  FLANKING_V_HORIZONTAL_SPEED: 2.0,  // velocidade horizontal na aproximação
-  FLANKING_V_VERTICAL_SPEED: 1.8,    // velocidade vertical na subida
-  FLANKING_V_MEET_MARGIN: 30,        // margem para considerar que os grupos se encontraram (px)
-  FLANKING_V_RISE_DISTANCE: 250,     // distância que sobem antes de separar (px)
-  FLANKING_V_SPAWN_OFFSET: 80,       // offset fora da tela para spawn
+  FLANKING_V_HORIZONTAL_SPEED: 3.0,
+  FLANKING_V_VERTICAL_SPEED: 2.7,
+  FLANKING_V_MEET_MARGIN: 15,
+  FLANKING_V_RISE_DISTANCE: 125,
+  FLANKING_V_SPAWN_OFFSET: 40,
 
   // V Formation
-  V_FORMATION_DESCENT_SPEED: 0.45,    // velocidade de descida gradual da formação
-  V_FORMATION_DIVE_SPEED: 4.5,       // velocidade de mergulho dos inimigos das pontas
-  V_FORMATION_ANGLE: 35,             // ângulo da formação V em graus
-  V_FORMATION_SPACING: 55,           // espaçamento entre inimigos na formação
-  V_FORMATION_DIVE_TRIGGER_Y: 200,   // Y onde as pontas começam a mergulhar
-  V_FORMATION_CLOSE_SPEED: 2.5,      // velocidade lateral do fechamento do centro
+  V_FORMATION_DESCENT_SPEED: 0.675,
+  V_FORMATION_DIVE_SPEED: 6.75,
+  V_FORMATION_ANGLE: 35,
+  V_FORMATION_SPACING: 27.5,
+  V_FORMATION_DIVE_TRIGGER_Y: 100,
+  V_FORMATION_CLOSE_SPEED: 3.75,
 
   // Waves
   WAVE_INITIAL_ENEMIES: 6,
@@ -56,4 +56,11 @@ export const GAME_CONFIG = {
 
   // Máximo de jogadores por sala
   MAX_PLAYERS: 2,
+
+  // Hearts (health pickups)
+  HEART_SIZE: 84,
+  HEART_HITBOX: 30,
+  HEART_SPAWN_INTERVAL_TICKS: 200, // 10s a 20 FPS
+  HEART_SPAWN_CHANCE: 0.5,        // 15%
+  HEART_MAX_ON_SCREEN: 3,
 };

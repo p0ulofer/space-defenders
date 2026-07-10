@@ -49,11 +49,17 @@ export interface Enemy {
   phase?: number; // fase do padrão (0=aproximação, 1=subida/descida, 2=separação/mergulho)
 }
 
+export interface Heart {
+  x: number;
+  y: number;
+}
+
 export interface GameSnapshot {
   players: PlayerState[];
   enemies: Enemy[];
   bullets: Bullet[];
+  hearts: Heart[];
   wave: number;
-  status: 'waiting' | 'playing' | 'gameover';
+  status: 'waiting' | 'playing' | 'gameover' | 'paused';
   message?: string;
 }

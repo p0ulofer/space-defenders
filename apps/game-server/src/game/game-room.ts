@@ -1,8 +1,8 @@
 import { GAME_CONFIG } from './config';
-import { PlayerState, Bullet, Enemy, GameSnapshot, SpawnPattern } from './types';
+import { PlayerState, Bullet, Enemy, Heart, GameSnapshot, SpawnPattern } from './types';
 import { encodeSnapshot } from './binary-protocol';
 
-export type { PlayerState, Bullet, Enemy, GameSnapshot };
+export type { PlayerState, Bullet, Enemy, Heart, GameSnapshot };
 
 const PATTERN_ROTATION: SpawnPattern[] = ['FLANKING_H', 'FLANKING_V', 'V_FORMATION', 'V_FORMATION_INV'];
 
@@ -11,8 +11,10 @@ export class GameRoom {
   private playerOrder: string[] = [];
   private enemies: Enemy[] = [];
   private bullets: Bullet[] = [];
+  private hearts: Heart[] = [];
+  private heartSpawnTimer = 0;
   private wave = 1;
-  private status: 'waiting' | 'playing' | 'gameover' = 'waiting';
+  private status: 'waiting' | 'playing' | 'gameover' | 'paused' = 'waiting';
   private tickInterval: NodeJS.Timeout | null = null;
   private minPlayers = 2;
 
@@ -111,8 +113,22 @@ export class GameRoom {
 
   handleInput(playerId: string, input: { type: string; direction?: number; directionX?: number; directionY?: number }) {
     const player = this.players.get(playerId);
-    if (!player || this.status !== 'playing') return;
+    if (!player) return;
     if (player.lives <= 0) return;
+
+    if (input.type === 'pause') {
+      if (this.minPlayers === 1) {
+        if (this.status === 'playing') {
+          this.status = 'paused';
+        } else if (this.status === 'paused') {
+          this.status = 'playing';
+        }
+        this.broadcastSnapshot();
+      }
+      return;
+    }
+
+    if (this.status !== 'playing') return;
 
     if (input.type === 'move') {
       const dx = input.directionX !== undefined ? input.directionX : (input.direction !== undefined ? input.direction : 0);
@@ -132,44 +148,35 @@ export class GameRoom {
       }
     }
 
-    if (input.type === 'rotate') {
-      const current = player.direction ?? 'UP';
-      const rotations: Record<'UP' | 'RIGHT' | 'DOWN' | 'LEFT', 'UP' | 'RIGHT' | 'DOWN' | 'LEFT'> = {
-        UP: 'RIGHT',
-        RIGHT: 'DOWN',
-        DOWN: 'LEFT',
-        LEFT: 'UP'
-      };
-      player.direction = rotations[current];
-    }
+    // Disabled manual rotation as requested - player automatically faces enemy wave direction
 
     if (input.type === 'shoot') {
       if (player.shootCooldown <= 0) {
         const dir = player.direction ?? 'UP';
         let bulletVx = 0;
         let bulletVy = 0;
-        let bulletX = player.x + player.width / 2 - 2;
-        let bulletY = player.y + player.height / 2 - 8;
+        let bulletX = player.x + player.width / 2 - 1;
+        let bulletY = player.y + player.height / 2 - 4;
 
         if (dir === 'UP') {
           bulletVy = -GAME_CONFIG.PLAYER_BULLET_SPEED;
-          bulletY = player.y - 12;
+          bulletY = player.y - 6;
         } else if (dir === 'DOWN') {
           bulletVy = GAME_CONFIG.PLAYER_BULLET_SPEED;
-          bulletY = player.y + player.height + 4;
+          bulletY = player.y + player.height + 2;
         } else if (dir === 'LEFT') {
           bulletVx = -GAME_CONFIG.PLAYER_BULLET_SPEED;
-          bulletX = player.x - 12;
+          bulletX = player.x - 6;
         } else if (dir === 'RIGHT') {
           bulletVx = GAME_CONFIG.PLAYER_BULLET_SPEED;
-          bulletX = player.x + player.width + 4;
+          bulletX = player.x + player.width + 2;
         }
 
         this.bullets.push({
           x: bulletX,
           y: bulletY,
-          width: dir === 'LEFT' || dir === 'RIGHT' ? 16 : 4,
-          height: dir === 'LEFT' || dir === 'RIGHT' ? 4 : 16,
+          width: dir === 'LEFT' || dir === 'RIGHT' ? 8 : 2,
+          height: dir === 'LEFT' || dir === 'RIGHT' ? 2 : 8,
           vx: bulletVx,
           vy: bulletVy,
           isPlayerBullet: true,
@@ -185,6 +192,7 @@ export class GameRoom {
       players: Array.from(this.players.values()),
       enemies: this.enemies,
       bullets: this.bullets,
+      hearts: this.hearts,
       wave: this.wave,
       status: this.status,
     };
@@ -207,6 +215,8 @@ export class GameRoom {
     this.status = 'waiting';
     this.enemies = [];
     this.bullets = [];
+    this.hearts = [];
+    this.heartSpawnTimer = 0;
     this.wave = 1;
   }
 
@@ -262,6 +272,18 @@ export class GameRoom {
       this.spawnWave();
     }
 
+    // 6.1 Spawn de hearts
+    this.heartSpawnTimer++;
+    if (this.heartSpawnTimer >= GAME_CONFIG.HEART_SPAWN_INTERVAL_TICKS) {
+      this.heartSpawnTimer = 0;
+      if (this.hearts.length < GAME_CONFIG.HEART_MAX_ON_SCREEN && Math.random() < GAME_CONFIG.HEART_SPAWN_CHANCE) {
+        this.hearts.push({
+          x: Math.random() * (GAME_CONFIG.GAME_WIDTH - GAME_CONFIG.HEART_SIZE),
+          y: Math.random() * (GAME_CONFIG.GAME_HEIGHT - GAME_CONFIG.HEART_SIZE),
+        });
+      }
+    }
+
     // 7. Verificar game over (todos os jogadores sem vidas)
     const allDead = Array.from(this.players.values()).every((p) => p.lives <= 0);
     if (allDead && this.players.size > 0) {
@@ -299,6 +321,12 @@ export class GameRoom {
       case 'V_FORMATION_INV':
         this.spawnVFormationInv();
         break;
+    }
+
+    // Automatically face the player ship in the direction of the newly spawned wave
+    const targetDirection = (this.currentPattern === 'FLANKING_V' || this.currentPattern === 'V_FORMATION_INV') ? 'DOWN' : 'UP';
+    for (const player of this.players.values()) {
+      player.direction = targetDirection;
     }
   }
 
@@ -884,13 +912,13 @@ export class GameRoom {
     const isBottomEnemy = ['bottom-left', 'bottom-right', 'v-inv-left', 'v-inv-right', 'v-inv-center'].includes(shooter.group);
 
     const bulletVy = isBottomEnemy ? -bulletSpeed : bulletSpeed;
-    const bulletY = isBottomEnemy ? shooter.y - 12 : shooter.y + shooter.height;
+    const bulletY = isBottomEnemy ? shooter.y - 6 : shooter.y + shooter.height;
 
     this.bullets.push({
-      x: shooter.x + shooter.width / 2 - 2,
+      x: shooter.x + shooter.width / 2 - 1,
       y: bulletY,
-      width: 4,
-      height: 16,
+      width: 2,
+      height: 8,
       vx: 0,
       vy: bulletVy,
       isPlayerBullet: false,
@@ -940,7 +968,7 @@ export class GameRoom {
         if (player.lives <= 0 || player.invincible > 0) continue;
         if (this.collides(bullet, player)) {
           player.lives--;
-          player.invincible = 120;
+          player.invincible = 40; // 2 seconds at 20 FPS
           return false; // Remove a bala
         }
       }
@@ -954,9 +982,28 @@ export class GameRoom {
         const enemy = this.enemies[i];
         if (this.collides(player, enemy)) {
           player.lives--;
-          player.invincible = 120;
+          player.invincible = 40; // 2 seconds at 20 FPS
           this.enemies.splice(i, 1);
           break; // Só perde 1 vida por tick
+        }
+      }
+    }
+
+    // Colisão: Jogador vs Heart (cura)
+    for (const player of this.players.values()) {
+      if (player.lives <= 0 || player.lives >= GAME_CONFIG.PLAYER_LIVES) continue;
+      for (let i = this.hearts.length - 1; i >= 0; i--) {
+        const heart = this.hearts[i];
+        const heartRect = {
+          x: heart.x + (GAME_CONFIG.HEART_SIZE - GAME_CONFIG.HEART_HITBOX) / 2,
+          y: heart.y + (GAME_CONFIG.HEART_SIZE - GAME_CONFIG.HEART_HITBOX) / 2,
+          width: GAME_CONFIG.HEART_HITBOX,
+          height: GAME_CONFIG.HEART_HITBOX,
+        };
+        if (this.collides(player, heartRect)) {
+          player.lives++;
+          this.hearts.splice(i, 1);
+          break;
         }
       }
     }

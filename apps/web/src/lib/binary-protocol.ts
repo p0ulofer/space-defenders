@@ -6,10 +6,11 @@ export enum InputType {
   SHOOT = 1,
 }
 
-const STATUS_INV: Array<'waiting' | 'playing' | 'gameover'> = ['waiting', 'playing', 'gameover'];
+const STATUS_INV: Array<'waiting' | 'playing' | 'gameover' | 'paused'> = ['waiting', 'playing', 'gameover', 'paused'];
 
-const REC_P = 16;
+const REC_P = 17;
 const REC_E = 11;
+const REC_H = 8;
 const REC_B = 12;
 
 const DIR_MAP_INV = ['UP', 'RIGHT', 'DOWN', 'LEFT'] as const;
@@ -49,12 +50,20 @@ interface BulletSnapshot {
   ownerId: string;
 }
 
+interface HeartSnapshot {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface GameSnapshot {
   players: PlayerSnapshot[];
   enemies: EnemySnapshot[];
   bullets: BulletSnapshot[];
+  hearts: HeartSnapshot[];
   wave: number;
-  status: 'waiting' | 'playing' | 'gameover';
+  status: 'waiting' | 'playing' | 'gameover' | 'paused';
 }
 
 // ── Encode input (client → server): 3 bytes ──
@@ -78,6 +87,7 @@ export function decodeSnapshot(buf: ArrayBuffer, myId: string, names: Map<number
   const status = STATUS_INV[v.getUint8(o)] ?? 'waiting'; o++;
   const pCount = v.getUint16(o, true); o += 2;
   const eCount = v.getUint16(o, true); o += 2;
+  const hCount = v.getUint16(o, true); o += 2;
 
   const players: PlayerSnapshot[] = [];
   for (let i = 0; i < pCount; i++) {
@@ -88,14 +98,15 @@ export function decodeSnapshot(buf: ArrayBuffer, myId: string, names: Map<number
     const score = v.getUint32(o, true); o += 4;
     const frame = v.getUint8(o); o++;
     const dirIdx = v.getUint8(o); o++;
+    const invincible = v.getUint8(o); o++;
 
     players.push({
       id: String(idx),
       name: names.get(idx) ?? 'PILOTO',
       x, y,
-      width: 64, height: 64,
+      width: 32, height: 32,
       lives, score, frame,
-      invincible: 0,
+      invincible,
       direction: DIR_MAP_INV[dirIdx] ?? 'UP',
     });
   }
@@ -110,10 +121,17 @@ export function decodeSnapshot(buf: ArrayBuffer, myId: string, names: Map<number
     enemies.push({
       id: `enemy-${idNum}`,
       x, y,
-      width: 56, height: 56,
+      width: 28, height: 28,
       frame,
       group: 'left',
     });
+  }
+
+  const hearts: HeartSnapshot[] = [];
+  for (let i = 0; i < hCount; i++) {
+    const x = v.getFloat32(o, true); o += 4;
+    const y = v.getFloat32(o, true); o += 4;
+    hearts.push({ x, y, width: 84, height: 84 });
   }
 
   const bullets: BulletSnapshot[] = [];
@@ -128,12 +146,12 @@ export function decodeSnapshot(buf: ArrayBuffer, myId: string, names: Map<number
 
     bullets.push({
       x, y,
-      width: 4, height: 16,
+      width: 2, height: 8,
       vx, vy,
       isPlayerBullet,
       ownerId: ownerIdIdx === 255 ? 'enemy' : String(ownerIdIdx),
     });
   }
 
-  return { players, enemies, bullets, wave, status };
+  return { players, enemies, bullets, hearts, wave, status };
 }

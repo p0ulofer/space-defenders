@@ -1,7 +1,7 @@
 // Binary protocol for game data using ArrayBuffer
 // All numbers are little-endian
 
-import { GameSnapshot, PlayerState, Enemy, Bullet } from './types';
+import { GameSnapshot, PlayerState, Enemy, Bullet, Heart } from './types';
 
 // ── Input (Client → Server): 3 bytes ──
 
@@ -30,16 +30,17 @@ export function decodeInput(buf: ArrayBuffer): { type: InputType; direction: num
 
 // ── Snapshot (Server → Client) ──
 //
-// Header (6B) | Players (11B each) | Enemies (9B each) | Bullets (12B each)
-//   wave:u8 status:u8 playerCount:u16 enemyCount:u16
+// Header (8B) | Players (17B each) | Enemies (11B each) | Hearts (8B each) | Bullets (12B each)
+//   wave:u8 status:u8 playerCount:u16 enemyCount:u16 heartCount:u16
 
-const HDR = 6;
-const REC_P = 16;
+const HDR = 8;
+const REC_P = 17;
 const REC_E = 11;
+const REC_H = 8;
 const REC_B = 12;
 
-const STATUS_MAP: Record<string, number> = { waiting: 0, playing: 1, gameover: 2 };
-const STATUS_INV: Array<'waiting' | 'playing' | 'gameover'> = ['waiting', 'playing', 'gameover'];
+const STATUS_MAP: Record<string, number> = { waiting: 0, playing: 1, gameover: 2, paused: 3 };
+const STATUS_INV: Array<'waiting' | 'playing' | 'gameover' | 'paused'> = ['waiting', 'playing', 'gameover', 'paused'];
 
 const DIR_MAP: Record<string, number> = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
 const DIR_INV = ['UP', 'RIGHT', 'DOWN', 'LEFT'] as const;
@@ -71,8 +72,8 @@ function enemyNum(id: string): number {
 // ── Encode ──
 
 export function encodeSnapshot(snap: GameSnapshot): ArrayBuffer {
-  const { players, enemies, bullets, wave, status } = snap;
-  const size = HDR + players.length * REC_P + enemies.length * REC_E + bullets.length * REC_B;
+  const { players, enemies, bullets, hearts, wave, status } = snap;
+  const size = HDR + players.length * REC_P + enemies.length * REC_E + hearts.length * REC_H + bullets.length * REC_B;
   const buf = new ArrayBuffer(size);
   const v = new DataView(buf);
   let o = 0;
@@ -82,6 +83,7 @@ export function encodeSnapshot(snap: GameSnapshot): ArrayBuffer {
   v.setUint8(o, STATUS_MAP[status] ?? 0); o++;
   v.setUint16(o, players.length, true); o += 2;
   v.setUint16(o, enemies.length, true); o += 2;
+  v.setUint16(o, hearts.length, true); o += 2;
 
   // Players
   for (const p of players) {
@@ -92,6 +94,7 @@ export function encodeSnapshot(snap: GameSnapshot): ArrayBuffer {
     v.setUint32(o, p.score, true); o += 4;
     v.setUint8(o, p.frame); o++;
     v.setUint8(o, DIR_MAP[p.direction ?? 'UP'] ?? 0); o++;
+    v.setUint8(o, p.invincible); o++;
   }
 
   // Enemies
@@ -100,6 +103,12 @@ export function encodeSnapshot(snap: GameSnapshot): ArrayBuffer {
     v.setFloat32(o, e.x, true); o += 4;
     v.setFloat32(o, e.y, true); o += 4;
     v.setUint8(o, e.frame); o++;
+  }
+
+  // Hearts
+  for (const h of hearts) {
+    v.setFloat32(o, h.x, true); o += 4;
+    v.setFloat32(o, h.y, true); o += 4;
   }
 
   // Bullets
@@ -129,6 +138,7 @@ export function decodeSnapshot(
   const status = STATUS_INV[v.getUint8(o)] ?? 'waiting'; o++;
   const pCount = v.getUint16(o, true); o += 2;
   const eCount = v.getUint16(o, true); o += 2;
+  const hCount = v.getUint16(o, true); o += 2;
 
   const players: PlayerState[] = [];
   for (let i = 0; i < pCount; i++) {
@@ -139,15 +149,16 @@ export function decodeSnapshot(
     const score = v.getUint32(o, true); o += 4;
     const frame = v.getUint8(o); o++;
     const dirVal = v.getUint8(o); o++;
+    const invincible = v.getUint8(o); o++;
 
     players.push({
       id: pId(idx, myId),
       name: names.get(idx) ?? 'PILOTO',
       x, y,
-      width: 64, height: 64,
+      width: 32, height: 32,
       lives, score, frame,
       shootCooldown: 0,
-      invincible: 0,
+      invincible,
       animCounter: 0,
       direction: DIR_INV[dirVal] ?? 'UP',
     });
@@ -169,6 +180,13 @@ export function decodeSnapshot(
     });
   }
 
+  const hearts: Heart[] = [];
+  for (let i = 0; i < hCount; i++) {
+    const x = v.getFloat32(o, true); o += 4;
+    const y = v.getFloat32(o, true); o += 4;
+    hearts.push({ x, y });
+  }
+
   const bullets: Bullet[] = [];
   const bCount = Math.floor((buf.byteLength - o) / REC_B);
   for (let i = 0; i < bCount; i++) {
@@ -188,5 +206,5 @@ export function decodeSnapshot(
     });
   }
 
-  return { players, enemies, bullets, wave, status };
+  return { players, enemies, bullets, hearts, wave, status };
 }

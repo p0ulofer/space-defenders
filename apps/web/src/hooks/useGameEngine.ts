@@ -26,7 +26,7 @@ interface UseGameEngineResult {
   roomId: string;
   playerIndex: number;
   sendInput: (
-    type: "move" | "shoot" | "rotate",
+    type: "move" | "shoot" | "rotate" | "pause",
     direction?: number,
     directionX?: number,
     directionY?: number
@@ -57,7 +57,7 @@ export function useWebRTCEngine({
   const playerIndexRef = useRef(0);
   const playerNamesRef = useRef<Map<number, string>>(new Map());
 
-  const sendInput = useCallback((type: "move" | "shoot" | "rotate", direction?: number, directionX?: number, directionY?: number) => {
+  const sendInput = useCallback((type: "move" | "shoot" | "rotate" | "pause", direction?: number, directionX?: number, directionY?: number) => {
     const socket = socketRef.current;
     if (!socket || !socket.connected) return;
 
